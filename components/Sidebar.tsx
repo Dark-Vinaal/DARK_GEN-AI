@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatSession, AppTab, AIProvider } from '../types';
-import { MessageSquare, Plus, Image, Video, MoreHorizontal, Edit2, Trash, Download, X, Check } from 'lucide-react';
+import { ChatSession, AppTab, Model, AIProvider } from '../types';
+import { MessageSquare, Plus, Image, Video, MoreHorizontal, Edit2, Trash, Download, X, Check, ChevronDown, Github, Linkedin, Globe } from 'lucide-react';
 import jsPDF from 'jspdf';
 
 interface SidebarProps {
@@ -12,8 +12,9 @@ interface SidebarProps {
   onLoadSession: (id: string) => void;
   onRenameSession: (id: string, newTitle: string) => void;
   onDeleteSession: (id: string) => void;
-  provider: AIProvider;
-  onSetProvider: (p: AIProvider) => void;
+  currentModelId: string;
+  onSetModelId: (id: string) => void;
+  availableModels: Model[];
   onCloseMobile: () => void;
 }
 
@@ -26,8 +27,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLoadSession,
   onRenameSession,
   onDeleteSession,
-  provider,
-  onSetProvider,
+  currentModelId,
+  onSetModelId,
+  availableModels,
   onCloseMobile
 }) => {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -77,6 +79,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  // Group models by provider for display
+  const groupedModels = availableModels.reduce((acc, model) => {
+    const group = model.provider === 'gemini' ? 'Native Gemini' : 
+                  model.provider === 'openrouter' ? 'OpenRouter Free' : 'Fallback';
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(model);
+    return acc;
+  }, {} as Record<string, Model[]>);
+
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a] border-r border-white/10">
       {/* Mobile Close */}
@@ -109,25 +120,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ))}
         </div>
 
-        {/* Model Toggle */}
-        <div className="flex items-center justify-between bg-zinc-900 border border-white/10 rounded-lg p-1">
-          <button
-            onClick={() => onSetProvider('gemini')}
-            className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${
-              provider === 'gemini' ? 'bg-indigo-600/20 text-indigo-300' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            Gemini
-          </button>
-          <button
-            onClick={() => onSetProvider('puter')}
-            className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${
-              provider === 'puter' ? 'bg-indigo-600/20 text-indigo-300' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            Puter.js
-          </button>
-        </div>
+        {/* Model Selector */}
+        {activeTab === 'chat' && (
+          <div className="relative group">
+            <select
+              value={currentModelId}
+              onChange={(e) => onSetModelId(e.target.value)}
+              className="w-full appearance-none bg-zinc-900 border border-white/10 text-white text-xs py-2.5 px-3 pr-8 rounded-lg focus:outline-none focus:border-indigo-500/50 cursor-pointer hover:bg-zinc-800 transition-colors"
+            >
+              {Object.entries(groupedModels).map(([group, models]) => (
+                <optgroup key={group} label={group} className="bg-zinc-900 text-gray-400">
+                  {models.map(model => (
+                    <option key={model.id} value={model.id} className="text-white">
+                      {model.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+        )}
 
         {activeTab === 'chat' && (
           <button
@@ -218,6 +231,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
              </p>
           </div>
         )}
+      </div>
+
+      {/* Social Footer */}
+      <div className="p-4 border-t border-white/10">
+        <div className="flex justify-center gap-6">
+          <a href="https://vinaalr.netlify.app/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-indigo-400 transition-colors" title="Portfolio">
+            <Globe size={18} />
+          </a>
+          <a href="https://www.linkedin.com/in/vinaal/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-500 transition-colors" title="LinkedIn">
+            <Linkedin size={18} />
+          </a>
+          <a href="https://github.com/Dark-Vinaal" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="GitHub">
+            <Github size={18} />
+          </a>
+        </div>
       </div>
     </div>
   );

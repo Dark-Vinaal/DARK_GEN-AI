@@ -20,11 +20,29 @@ const fileToPart = (file: File): Promise<{ inlineData: { data: string; mimeType:
   });
 };
 
+const getApiKey = () => {
+  // Robust check for API key: try import.meta.env first, then process.env
+  // Uses optional chaining (?.) to prevent crashes if objects are undefined
+  const key = import.meta.env?.VITE_GEMINI_API_KEY || 
+              (typeof process !== 'undefined' ? process.env?.VITE_GEMINI_API_KEY : undefined);
+
+  // Basic validation to ensure placeholder keys aren't used
+  if (!key || key.includes("PLACE_YOUR_KEY") || key.includes("ENTER_YOUR_KEY")) {
+    return "";
+  }
+  return key;
+}
+
 export const sendMessageToGemini = async (
   { text, file, signal }: SendMessageParams,
   onStream: (chunk: string) => void
 ) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Missing Gemini API Key. Please check your .env configuration.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const modelId = 'gemini-3-flash-preview';
 
   const parts: any[] = [];
@@ -52,7 +70,12 @@ export const sendMessageToGemini = async (
 };
 
 export const generateImageWithGemini = async (prompt: string, aspectRatio: string = "1:1"): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Missing Gemini API Key. Please check your .env configuration.");
+  }
+  
+  const ai = new GoogleGenAI({ apiKey });
   
   // Use gemini-2.5-flash-image for standard image generation
   const response = await ai.models.generateContent({
@@ -83,7 +106,8 @@ export const generateVideoWithVeo = async (prompt: string): Promise<string> => {
      // Re-instantiate needed if key changed, but for now we proceed
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  const ai = new GoogleGenAI({ apiKey });
   
   let operation = await ai.models.generateVideos({
     model: 'veo-3.1-fast-generate-preview',
@@ -105,5 +129,5 @@ export const generateVideoWithVeo = async (prompt: string): Promise<string> => {
   if (!videoUri) throw new Error("Video generation failed");
   
   // The URI needs the API Key appended to fetch the binary
-  return `${videoUri}&key=${process.env.API_KEY}`;
+  return `${videoUri}&key=${apiKey}`;
 };

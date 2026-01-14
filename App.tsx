@@ -5,29 +5,82 @@ import { ChatInput } from './components/ChatInput';
 import { MessageList } from './components/MessageList';
 import { ImageGenerator } from './components/ImageGenerator';
 import { VideoGenerator } from './components/VideoGenerator';
-import { Message, ChatSession, AIProvider, AppTab } from './types';
+import { Message, ChatSession, AppTab, Model } from './types';
 import { sendMessageToGemini } from './services/gemini';
 import { sendMessageToPuter } from './services/puter';
+import { sendMessageToOpenRouter } from './services/openrouter';
 import jsPDF from 'jspdf';
+import { AlertTriangle, X } from 'lucide-react';
+
+// Define available models
+const AVAILABLE_MODELS: Model[] = [
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Native)', provider: 'gemini' },
+  { id: 'openai/gpt-oss-120b:free', name: 'GPT OSS 120B (Free)', provider: 'openrouter', isFree: true },
+  { id: 'deepseek/deepseek-chat:free', name: 'DeepSeek Chat (Free)', provider: 'openrouter', isFree: true },
+  { id: 'meta-llama/llama-4-scout:free', name: 'Llama 4 Scout (Free)', provider: 'openrouter', isFree: true },
+  { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash Exp (Free)', provider: 'openrouter', isFree: true },
+  { id: 'puter-chat', name: 'Puter.js (Llama/GPT Fallback)', provider: 'puter' }
+];
+
+const MissingKeyToast: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+  <div className="fixed top-4 right-4 z-50 max-w-sm animate-in slide-in-from-right fade-in duration-300">
+    <div className="bg-zinc-900/95 backdrop-blur-md border border-amber-500/30 rounded-xl shadow-2xl p-4 flex gap-3 relative">
+      <div className="p-2 bg-amber-500/10 rounded-lg h-fit shrink-0">
+         <AlertTriangle size={20} className="text-amber-500" />
+      </div>
+      <div>
+        <h4 className="text-white font-medium text-sm mb-1">Setup Required</h4>
+        <p className="text-zinc-400 text-xs leading-relaxed mb-2">
+          API keys are missing from your environment. The app has switched to <b>Fallback Mode</b> (Puter.js).
+        </p>
+        <p className="text-zinc-500 text-[10px] font-mono bg-black/30 p-1.5 rounded border border-white/5">
+          See .env.example
+        </p>
+      </div>
+      <button 
+        onClick={onClose}
+        className="absolute top-2 right-2 p-1 text-zinc-500 hover:text-white transition-colors"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  </div>
+);
 
 const App: React.FC = () => {
-  const [provider, setProvider] = useState<AIProvider>('gemini');
   const [activeTab, setActiveTab] = useState<AppTab>('chat');
+  const [currentModelId, setCurrentModelId] = useState<string>('gemini-3-flash-preview');
   const [messages, setMessages] = useState<Message[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string>(Date.now().toString());
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [darkMode, setDarkMode] = useState(true);
+  const [showMissingKeyToast, setShowMissingKeyToast] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Initialize and check API Key
   useEffect(() => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey || apiKey === 'ENTER_YOUR_KEY_HERE') {
-      setProvider('puter');
+    // Access keys safely via optional chaining on import.meta.env
+    // This prevents crashes if import.meta.env is undefined (e.g. certain preview envs)
+    const geminiKey = import.meta.env?.VITE_GEMINI_API_KEY || 
+                     (typeof process !== 'undefined' ? process.env?.VITE_GEMINI_API_KEY : undefined);
+    
+    const openRouterKey = import.meta.env?.VITE_OPENROUTER_KEY || 
+                          (typeof process !== 'undefined' ? process.env?.VITE_OPENROUTER_KEY : undefined);
+    
+    // Check if keys are placeholders or missing
+    const isGeminiMissing = !geminiKey || geminiKey.includes("PLACE_YOUR_KEY") || geminiKey.includes("ENTER_YOUR_KEY");
+    const isOpenRouterMissing = !openRouterKey || openRouterKey.includes("PLACE_YOUR_KEY") || openRouterKey.includes("ENTER_YOUR_KEY");
+
+    if (isGeminiMissing && isOpenRouterMissing) {
+      setCurrentModelId('puter-chat');
+      setShowMissingKeyToast(true);
+    } else if (isGeminiMissing && !isOpenRouterMissing) {
+      // Default to an OpenRouter model if only Gemini is missing
+      setCurrentModelId('deepseek/deepseek-chat:free');
     }
     
     const savedSessions = localStorage.getItem('chat_history');
@@ -114,8 +167,13 @@ const App: React.FC = () => {
         scrollToBottom();
       };
 
+      const selectedModel = AVAILABLE_MODELS.find(m => m.id === currentModelId);
+      const provider = selectedModel?.provider || 'puter';
+
       if (provider === 'gemini') {
         await sendMessageToGemini({ text, file, signal: abortControllerRef.current.signal }, onStream);
+      } else if (provider === 'openrouter') {
+        await sendMessageToOpenRouter({ text, file, modelId: currentModelId, signal: abortControllerRef.current.signal }, onStream);
       } else {
         await sendMessageToPuter({ text, file }, onStream);
       }
@@ -136,7 +194,7 @@ const App: React.FC = () => {
         console.error("Error sending message:", error);
         setMessages(prev => prev.map(m => 
           m.isStreaming 
-            ? { ...m, content: "Error: Service unavailable or request failed.", isStreaming: false, isError: true } 
+            ? { ...m, content: `Error: ${error.message || "Service unavailable."}`, isStreaming: false, isError: true } 
             : m
         ));
       }
@@ -256,8 +314,13 @@ const App: React.FC = () => {
     doc.save(`chat-${currentSessionId}.pdf`);
   };
 
+  const selectedModelName = AVAILABLE_MODELS.find(m => m.id === currentModelId)?.name || 'AI Assistant';
+
   return (
     <div className={`flex h-screen w-full ${darkMode ? 'bg-black text-gray-100' : 'bg-gray-50 text-gray-900'} overflow-hidden relative font-sans transition-colors duration-300`}>
+      {/* Toast Notification */}
+      {showMissingKeyToast && <MissingKeyToast onClose={() => setShowMissingKeyToast(false)} />}
+
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div 
@@ -280,8 +343,9 @@ const App: React.FC = () => {
           onLoadSession={loadSession}
           onRenameSession={renameSession}
           onDeleteSession={deleteSession}
-          provider={provider}
-          onSetProvider={setProvider}
+          currentModelId={currentModelId}
+          onSetModelId={setCurrentModelId}
+          availableModels={AVAILABLE_MODELS}
           onCloseMobile={() => setSidebarOpen(false)}
         />
       </div>
@@ -291,8 +355,8 @@ const App: React.FC = () => {
         <Navbar 
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
-          provider={provider}
-          modelName={provider === 'gemini' ? 'Gemini 3 Flash' : 'Puter.js (Llama)'}
+          provider={AVAILABLE_MODELS.find(m => m.id === currentModelId)?.provider || 'puter'}
+          modelName={selectedModelName}
           onClearChat={clearCurrentChat}
           onDownloadChat={downloadCurrentChat}
           darkMode={darkMode}
