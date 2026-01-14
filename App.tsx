@@ -24,22 +24,22 @@ const AVAILABLE_MODELS: Model[] = [
 
 const MissingKeyToast: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <div className="fixed top-4 right-4 z-50 max-w-sm animate-in slide-in-from-right fade-in duration-300">
-    <div className="bg-zinc-900/95 backdrop-blur-md border border-amber-500/30 rounded-xl shadow-2xl p-4 flex gap-3 relative">
+    <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-amber-500/30 rounded-xl shadow-2xl p-4 flex gap-3 relative">
       <div className="p-2 bg-amber-500/10 rounded-lg h-fit shrink-0">
          <AlertTriangle size={20} className="text-amber-500" />
       </div>
       <div>
-        <h4 className="text-white font-medium text-sm mb-1">Setup Required</h4>
-        <p className="text-zinc-400 text-xs leading-relaxed mb-2">
+        <h4 className="text-gray-900 dark:text-white font-medium text-sm mb-1">Setup Required</h4>
+        <p className="text-gray-500 dark:text-zinc-400 text-xs leading-relaxed mb-2">
           API keys are missing from your environment. The app has switched to <b>Fallback Mode</b> (Puter.js).
         </p>
-        <p className="text-zinc-500 text-[10px] font-mono bg-black/30 p-1.5 rounded border border-white/5">
+        <p className="text-gray-600 dark:text-zinc-500 text-[10px] font-mono bg-gray-100 dark:bg-black/30 p-1.5 rounded border border-gray-200 dark:border-white/5">
           See .env.example
         </p>
       </div>
       <button 
         onClick={onClose}
-        className="absolute top-2 right-2 p-1 text-zinc-500 hover:text-white transition-colors"
+        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-white transition-colors"
       >
         <X size={14} />
       </button>
@@ -64,7 +64,6 @@ const App: React.FC = () => {
   // Initialize and check API Key
   useEffect(() => {
     // Access keys safely via optional chaining on import.meta.env
-    // This prevents crashes if import.meta.env is undefined (e.g. certain preview envs)
     const geminiKey = import.meta.env?.VITE_GEMINI_API_KEY || 
                      (typeof process !== 'undefined' ? process.env?.VITE_GEMINI_API_KEY : undefined);
     
@@ -317,7 +316,7 @@ const App: React.FC = () => {
   const selectedModelName = AVAILABLE_MODELS.find(m => m.id === currentModelId)?.name || 'AI Assistant';
 
   return (
-    <div className={`flex h-screen w-full ${darkMode ? 'bg-black text-gray-100' : 'bg-gray-50 text-gray-900'} overflow-hidden relative font-sans transition-colors duration-300`}>
+    <div className={`flex h-screen w-full ${darkMode ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'} overflow-hidden relative font-sans transition-colors duration-300`}>
       {/* Toast Notification */}
       {showMissingKeyToast && <MissingKeyToast onClose={() => setShowMissingKeyToast(false)} />}
 
@@ -364,10 +363,10 @@ const App: React.FC = () => {
         />
 
         {/* Content Area */}
-        <div className={`flex-1 overflow-hidden flex flex-col relative ${darkMode ? 'bg-[#121212]' : 'bg-white'}`}>
+        <div className={`flex-1 overflow-hidden flex flex-col relative transition-colors duration-300 ${darkMode ? 'bg-[#121212]' : 'bg-white'}`}>
           {activeTab === 'chat' && (
             <>
-              <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700">
+              <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-zinc-700">
                 <MessageList 
                     messages={messages} 
                     onDelete={handleMessageDelete}
@@ -377,7 +376,7 @@ const App: React.FC = () => {
                 />
                 <div ref={messagesEndRef} className="h-4" />
               </div>
-              <div className={`p-4 ${darkMode ? 'bg-gradient-to-t from-black to-transparent' : 'bg-white'}`}>
+              <div className={`p-4 transition-colors duration-300 ${darkMode ? 'bg-gradient-to-t from-black to-transparent' : 'bg-white'}`}>
                 <ChatInput onSendMessage={handleSendMessage} onStop={handleStop} loading={loading} />
                 <p className={`text-center text-[10px] mt-2 ${darkMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
                    Models can hallucinate. Check important info.
