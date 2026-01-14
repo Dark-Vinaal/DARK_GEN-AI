@@ -1,26 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
+import { Navbar } from './components/Navbar';
 import { ChatInput } from './components/ChatInput';
 import { MessageList } from './components/MessageList';
-import { Message, ChatSession, AIProvider } from './types';
+import { ImageGenerator } from './components/ImageGenerator';
+import { VideoGenerator } from './components/VideoGenerator';
+import { Message, ChatSession, AIProvider, AppTab } from './types';
 import { sendMessageToGemini } from './services/gemini';
 import { sendMessageToPuter } from './services/puter';
-import { Menu, Zap, AlertTriangle } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 const App: React.FC = () => {
   const [provider, setProvider] = useState<AIProvider>('gemini');
+  const [activeTab, setActiveTab] = useState<AppTab>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string>(Date.now().toString());
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [darkMode, setDarkMode] = useState(true);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Initialize and check API Key
   useEffect(() => {
     const apiKey = process.env.API_KEY;
     if (!apiKey || apiKey === 'ENTER_YOUR_KEY_HERE') {
-      console.warn("Gemini API Key missing. Switching to Puter.js fallback.");
       setProvider('puter');
     }
     
@@ -28,11 +34,28 @@ const App: React.FC = () => {
     if (savedSessions) {
       setSessions(JSON.parse(savedSessions));
     }
+    
+    // Theme init
+    if (localStorage.getItem('theme') === 'light') {
+      setDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    }
   }, []);
 
   useEffect(() => {
     localStorage.setItem('chat_history', JSON.stringify(sessions));
   }, [sessions]);
+
+  const toggleTheme = () => {
+    setDarkMode(!darkMode);
+    if (darkMode) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,8 +65,21 @@ const App: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setLoading(false);
+      setMessages(prev => prev.map(m => m.isStreaming ? { ...m, isStreaming: false, content: m.content + ' [Stopped]' } : m));
+    }
+  };
+
   const handleSendMessage = async (text: string, file?: File) => {
     if (!text.trim() && !file) return;
+
+    // Abort previous if any
+    if (loading) handleStop();
+    abortControllerRef.current = new AbortController();
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -60,7 +96,6 @@ const App: React.FC = () => {
       let responseText = '';
       const botMsgId = (Date.now() + 1).toString();
       
-      // Initial bot message placeholder
       setMessages(prev => [...prev, {
         id: botMsgId,
         role: 'assistant',
@@ -80,7 +115,7 @@ const App: React.FC = () => {
       };
 
       if (provider === 'gemini') {
-        await sendMessageToGemini({ text, file }, onStream);
+        await sendMessageToGemini({ text, file, signal: abortControllerRef.current.signal }, onStream);
       } else {
         await sendMessageToPuter({ text, file }, onStream);
       }
@@ -89,7 +124,6 @@ const App: React.FC = () => {
         m.id === botMsgId ? { ...m, isStreaming: false } : m
       ));
 
-      // Update session history
       updateSessionHistory(userMsg, { 
         id: botMsgId, 
         role: 'assistant', 
@@ -97,19 +131,18 @@ const App: React.FC = () => {
         timestamp: Date.now() 
       });
 
-    } catch (error) {
-      console.error("Error sending message:", error);
-      const errorMessage = provider === 'gemini' 
-        ? "Gemini encountered an error. Try switching to Puter." 
-        : "Puter service is currently unavailable.";
-        
-      setMessages(prev => prev.map(m => 
-        m.isStreaming 
-          ? { ...m, content: errorMessage, isStreaming: false, isError: true } 
-          : m
-      ));
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error("Error sending message:", error);
+        setMessages(prev => prev.map(m => 
+          m.isStreaming 
+            ? { ...m, content: "Error: Service unavailable or request failed.", isStreaming: false, isError: true } 
+            : m
+        ));
+      }
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -118,24 +151,65 @@ const App: React.FC = () => {
       const existingSessionIndex = prev.findIndex(s => s.id === currentSessionId);
       if (existingSessionIndex >= 0) {
         const updated = [...prev];
-        updated[existingSessionIndex].messages.push(userMsg, botMsg);
-        updated[existingSessionIndex].lastUpdated = Date.now();
-        updated[existingSessionIndex].preview = userMsg.content.substring(0, 50) + '...';
+        const session = updated[existingSessionIndex];
+        session.messages.push(userMsg, botMsg);
+        session.lastUpdated = Date.now();
+        // Update preview only if it's the first exchange
+        if (session.messages.length <= 2) {
+            session.preview = userMsg.content.substring(0, 40) + '...';
+            session.title = userMsg.content.substring(0, 30);
+        }
         return updated;
       } else {
         return [{
           id: currentSessionId,
+          title: userMsg.content.substring(0, 30),
           messages: [userMsg, botMsg],
           lastUpdated: Date.now(),
-          preview: userMsg.content.substring(0, 50) + '...'
+          preview: userMsg.content.substring(0, 40) + '...'
         }, ...prev];
       }
     });
   };
 
+  // Message Actions
+  const handleMessageDelete = (id: string) => {
+    setMessages(prev => prev.filter(m => m.id !== id));
+    // Also update history
+    setSessions(prev => prev.map(s => 
+      s.id === currentSessionId ? { ...s, messages: s.messages.filter(m => m.id !== id) } : s
+    ));
+  };
+
+  const handleMessageEdit = (id: string, newContent: string) => {
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, content: newContent } : m));
+  };
+
+  const handleRegenerate = (botMsgId: string) => {
+    // Find the user message before this bot message
+    const msgIndex = messages.findIndex(m => m.id === botMsgId);
+    if (msgIndex > 0) {
+        const userMsg = messages[msgIndex - 1];
+        if (userMsg.role === 'user') {
+            // Delete bot message and everything after (optional, but cleaner for regen)
+            setMessages(prev => prev.slice(0, msgIndex));
+            handleSendMessage(userMsg.content, undefined); // Re-trigger send
+        }
+    }
+  };
+
+  const handleFeedback = (id: string, type: 'like' | 'dislike') => {
+    setMessages(prev => prev.map(m => 
+        m.id === id ? { ...m, liked: type === 'like', disliked: type === 'dislike' } : m
+    ));
+  };
+
+  // Session Management
   const startNewChat = () => {
     setCurrentSessionId(Date.now().toString());
     setMessages([]);
+    setActiveTab('chat');
+    if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
   const loadSession = (sessionId: string) => {
@@ -143,31 +217,69 @@ const App: React.FC = () => {
     if (session) {
       setCurrentSessionId(sessionId);
       setMessages(session.messages);
+      setActiveTab('chat');
       if (window.innerWidth < 768) setSidebarOpen(false);
     }
   };
 
+  const deleteSession = (id: string) => {
+    setSessions(prev => prev.filter(s => s.id !== id));
+    if (currentSessionId === id) {
+        startNewChat();
+    }
+  };
+
+  const renameSession = (id: string, newTitle: string) => {
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
+  };
+
+  // Global Actions
+  const clearCurrentChat = () => {
+    if (confirm("Are you sure you want to clear this chat?")) {
+        setMessages([]);
+        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, messages: [] } : s));
+    }
+  };
+
+  const downloadCurrentChat = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("Chat Export", 10, 10);
+    doc.setFontSize(12);
+    let y = 20;
+    messages.forEach(msg => {
+      const text = doc.splitTextToSize(`${msg.role.toUpperCase()}: ${msg.content}`, 180);
+      if (y + text.length * 7 > 280) { doc.addPage(); y = 10; }
+      doc.text(text, 10, y);
+      y += text.length * 7 + 5;
+    });
+    doc.save(`chat-${currentSessionId}.pdf`);
+  };
+
   return (
-    <div className="flex h-screen w-full bg-charcoal text-gray-100 overflow-hidden relative">
+    <div className={`flex h-screen w-full ${darkMode ? 'bg-black text-gray-100' : 'bg-gray-50 text-gray-900'} overflow-hidden relative font-sans transition-colors duration-300`}>
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 z-20 md:hidden"
+          className="fixed inset-0 bg-black/60 z-20 md:hidden backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div className={`
-        fixed md:relative z-30 h-full w-72 bg-[#0a0a0a] border-r border-glassBorder 
-        transition-transform duration-300 ease-in-out flex flex-col
+        fixed md:relative z-30 h-full w-72 transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:hidden'}
       `}>
         <Sidebar 
           sessions={sessions}
           currentSessionId={currentSessionId}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
           onNewChat={startNewChat}
           onLoadSession={loadSession}
+          onRenameSession={renameSession}
+          onDeleteSession={deleteSession}
           provider={provider}
           onSetProvider={setProvider}
           onCloseMobile={() => setSidebarOpen(false)}
@@ -176,49 +288,42 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full relative w-full">
-        {/* Header */}
-        <header className="h-14 border-b border-glassBorder flex items-center justify-between px-4 bg-[#121212]/80 backdrop-blur-md z-10">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-glass rounded-lg transition-colors"
-            >
-              <Menu size={20} />
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-lg tracking-tight">
-                {provider === 'gemini' ? 'Gemini 3 Flash' : 'Puter.js (Llama-3)'}
-              </span>
-              {provider === 'gemini' ? (
-                <Zap size={14} className="text-yellow-400 fill-yellow-400" />
-              ) : (
-                <Zap size={14} className="text-blue-400 fill-blue-400" />
-              )}
-            </div>
-          </div>
-          
-          {!process.env.API_KEY || process.env.API_KEY === 'ENTER_YOUR_KEY_HERE' ? (
-             <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
-               <AlertTriangle size={12} />
-               <span>Fallback Mode</span>
-             </div>
-          ) : null}
-        </header>
+        <Navbar 
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          provider={provider}
+          modelName={provider === 'gemini' ? 'Gemini 3 Flash' : 'Puter.js (Llama)'}
+          onClearChat={clearCurrentChat}
+          onDownloadChat={downloadCurrentChat}
+          darkMode={darkMode}
+          toggleTheme={toggleTheme}
+        />
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
-          <MessageList messages={messages} />
-          <div ref={messagesEndRef} className="h-4" />
-        </div>
+        {/* Content Area */}
+        <div className={`flex-1 overflow-hidden flex flex-col relative ${darkMode ? 'bg-[#121212]' : 'bg-white'}`}>
+          {activeTab === 'chat' && (
+            <>
+              <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700">
+                <MessageList 
+                    messages={messages} 
+                    onDelete={handleMessageDelete}
+                    onRegenerate={handleRegenerate}
+                    onEdit={handleMessageEdit}
+                    onFeedback={handleFeedback}
+                />
+                <div ref={messagesEndRef} className="h-4" />
+              </div>
+              <div className={`p-4 ${darkMode ? 'bg-gradient-to-t from-black to-transparent' : 'bg-white'}`}>
+                <ChatInput onSendMessage={handleSendMessage} onStop={handleStop} loading={loading} />
+                <p className={`text-center text-[10px] mt-2 ${darkMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                   Models can hallucinate. Check important info.
+                </p>
+              </div>
+            </>
+          )}
 
-        {/* Input Area */}
-        <div className="p-4 bg-gradient-to-t from-charcoal to-transparent">
-          <div className="max-w-3xl mx-auto">
-             <ChatInput onSendMessage={handleSendMessage} loading={loading} />
-             <p className="text-center text-xs text-gray-500 mt-2">
-               AI can make mistakes. Please verify important information.
-             </p>
-          </div>
+          {activeTab === 'image' && <ImageGenerator />}
+          {activeTab === 'video' && <VideoGenerator />}
         </div>
       </div>
     </div>

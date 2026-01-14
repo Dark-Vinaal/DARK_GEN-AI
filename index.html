@@ -9,14 +9,11 @@
       // CRITICAL: Polyfills for Node.js-based libraries running in the browser.
       // These must run before any other scripts.
       
-      // 1. Define global if it doesn't exist
       window.global = window;
-      
-      // 2. Polyfill process.env
       window.process = window.process || { env: {} };
-      
-      // 3. Polyfill Number.prototype.unref/ref for socket.io (used by puter.js)
-      // This prevents "TypeError: i.unref is not a function"
+
+      // Polyfill for timers to prevent "unref" errors common in Node modules on browser
+      // Some libraries expect setTimeout to return an object with unref()
       if (typeof Number.prototype.unref === 'undefined') {
         // @ts-ignore
         Number.prototype.unref = function() { return this; };
@@ -24,6 +21,14 @@
       if (typeof Number.prototype.ref === 'undefined') {
         // @ts-ignore
         Number.prototype.ref = function() { return this; };
+      }
+      
+      // Polyfill setImmediate (required by some socket libraries inside Puter)
+      if (typeof window.setImmediate === 'undefined') {
+        // @ts-ignore
+        window.setImmediate = function(cb) { return window.setTimeout(cb, 0); };
+        // @ts-ignore
+        window.clearImmediate = window.clearTimeout;
       }
 
       tailwind.config = {
@@ -48,10 +53,10 @@
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "jspdf": "https://esm.sh/jspdf@^4.0.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
     "@heyputer/puter.js": "https://esm.sh/@heyputer/puter.js@^2.2.5",
-    "jspdf": "https://esm.sh/jspdf@^4.0.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }

@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { Send, Mic, Paperclip, X, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Send, Mic, Paperclip, X, FileText, Image as ImageIcon, Loader2, Square } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (text: string, file?: File) => void;
+  onStop: () => void;
   loading: boolean;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, loading }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onStop, loading }) => {
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -28,10 +29,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, loading }) 
 
   const toggleVoice = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Browser does not support speech recognition.");
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     if (isListening) {
       setIsListening(false);
@@ -52,87 +50,91 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, loading }) 
       setIsListening(false);
     };
 
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative">
-      {/* File Preview Bubble */}
+    <div className="relative w-full max-w-3xl mx-auto">
+      {/* File Preview */}
       {file && (
-        <div className="absolute -top-12 left-0 bg-gray-800 border border-gray-700 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg animate-in slide-in-from-bottom-2">
-          {file.type.startsWith('image/') ? <ImageIcon size={12} /> : <FileText size={12} />}
-          <span className="max-w-[150px] truncate">{file.name}</span>
+        <div className="absolute -top-14 left-4 bg-zinc-800 border border-zinc-700 text-white px-3 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg animate-in slide-in-from-bottom-2">
+          {file.type.startsWith('image/') ? <ImageIcon size={14} className="text-indigo-400" /> : <FileText size={14} className="text-indigo-400" />}
+          <span className="max-w-[150px] truncate font-medium">{file.name}</span>
           <button 
             type="button" 
             onClick={() => setFile(null)}
-            className="hover:text-red-400 transition-colors"
+            className="p-1 hover:bg-white/10 rounded-full transition-colors ml-1"
           >
             <X size={12} />
           </button>
         </div>
       )}
 
-      <div className="bg-[#1e1e1e] border border-glassBorder rounded-2xl flex items-center p-2 shadow-2xl focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
-        {/* File Button */}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
-          title="Upload File"
-        >
-          <Paperclip size={20} />
-        </button>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileSelect} 
-          className="hidden" 
-          accept="image/*,.pdf,.txt,.md"
-        />
-
-        {/* Text Input */}
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={isListening ? "Listening..." : "Message Gemini..."}
-          className="flex-1 bg-transparent border-none focus:outline-none text-white px-3 placeholder-gray-500"
-          disabled={loading}
-        />
-
-        {/* Right Actions */}
-        <div className="flex items-center gap-1">
+      <form onSubmit={handleSubmit} className="relative">
+        <div className="bg-zinc-900 border border-white/10 rounded-[2rem] flex items-center p-2 shadow-2xl focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
           <button
             type="button"
-            onClick={toggleVoice}
-            className={`p-2.5 rounded-xl transition-colors ${
-              isListening 
-                ? 'text-red-500 bg-red-500/10 animate-pulse' 
-                : 'text-gray-400 hover:text-white hover:bg-white/10'
-            }`}
+            onClick={() => fileInputRef.current?.click()}
+            className="p-3 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
           >
-            <Mic size={20} />
+            <Paperclip size={20} />
           </button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileSelect} 
+            className="hidden" 
+            accept="image/*,.pdf,.txt,.md"
+          />
 
-          <button
-            type="submit"
-            disabled={(!text.trim() && !file) || loading}
-            className={`p-2.5 rounded-xl transition-all flex items-center justify-center ${
-              text.trim() || file 
-                ? 'bg-indigo-600 text-white shadow-lg hover:bg-indigo-700' 
-                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-          </button>
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={isListening ? "Listening..." : "Message Gemini..."}
+            className="flex-1 bg-transparent border-none focus:outline-none text-white px-4 placeholder-zinc-500 h-10"
+            disabled={loading}
+          />
+
+          <div className="flex items-center gap-1 pr-1">
+            <button
+              type="button"
+              onClick={toggleVoice}
+              className={`p-3 rounded-full transition-colors ${
+                isListening 
+                  ? 'text-red-500 bg-red-500/10 animate-pulse' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Mic size={20} />
+            </button>
+
+            {loading ? (
+              <button
+                type="button"
+                onClick={onStop}
+                className="p-3 bg-zinc-800 text-white rounded-full hover:bg-zinc-700 transition-colors shadow-lg"
+                title="Stop generation"
+              >
+                <Square size={16} fill="white" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!text.trim() && !file}
+                className={`p-3 rounded-full transition-all flex items-center justify-center ${
+                  text.trim() || file 
+                    ? 'bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:scale-105 active:scale-95' 
+                    : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                }`}
+              >
+                <Send size={18} />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 };

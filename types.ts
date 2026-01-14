@@ -1,5 +1,6 @@
 export type Role = 'user' | 'assistant' | 'system';
 export type AIProvider = 'gemini' | 'puter';
+export type AppTab = 'chat' | 'image' | 'video';
 
 export interface Message {
   id: string;
@@ -13,10 +14,13 @@ export interface Message {
   };
   isStreaming?: boolean;
   isError?: boolean;
+  liked?: boolean;
+  disliked?: boolean;
 }
 
 export interface ChatSession {
   id: string;
+  title: string;
   messages: Message[];
   lastUpdated: number;
   preview: string;
@@ -25,6 +29,7 @@ export interface ChatSession {
 export interface SendMessageParams {
   text: string;
   file?: File;
+  signal?: AbortSignal; // For stopping generation
 }
 
 // Global Puter interface assumption
@@ -34,6 +39,6 @@ declare global {
       ai: {
         chat: (prompt: string, options?: { stream?: boolean; model?: string }) => Promise<any>;
       }
-    }
+    };
   }
 }
