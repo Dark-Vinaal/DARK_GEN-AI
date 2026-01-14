@@ -1,0 +1,7 @@
+{
+  "name": "DARK GENAI",
+  "description": "A professional dual-provider AI chatbot featuring Gemini Flash and Puter.js fallback, with voice input and file analysis capabilities.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gemini-Puter Hybrid Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // CRITICAL: Polyfills for Node.js-based libraries running in the browser.
+      // These must run before any other scripts.
+      
+      // 1. Define global if it doesn't exist
+      window.global = window;
+      
+      // 2. Polyfill process.env
+      window.process = window.process || { env: {} };
+      
+      // 3. Polyfill Number.prototype.unref/ref for socket.io (used by puter.js)
+      // This prevents "TypeError: i.unref is not a function"
+      if (typeof Number.prototype.unref === 'undefined') {
+        // @ts-ignore
+        Number.prototype.unref = function() { return this; };
+      }
+      if (typeof Number.prototype.ref === 'undefined') {
+        // @ts-ignore
+        Number.prototype.ref = function() { return this; };
+      }
+
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              charcoal: '#121212',
+              glass: 'rgba(255, 255, 255, 0.05)',
+              glassBorder: 'rgba(255, 255, 255, 0.1)',
+            },
+            animation: {
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
+          },
+        },
+      }
+    </script>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "@heyputer/puter.js": "https://esm.sh/@heyputer/puter.js@^2.2.5",
+    "jspdf": "https://esm.sh/jspdf@^4.0.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+</head>
+  <body class="bg-charcoal text-white antialiased overflow-hidden selection:bg-indigo-500 selection:text-white">
+    <div id="root"></div>
+  </body>
+</html>
