@@ -1,0 +1,18 @@
+# Netlify Configuration File
+
+[build]
+  # This is the command to build your Vite project
+  command = "npm run build"
+  
+  # This is the folder Vite creates after building
+  publish = "dist"
+
+# This section fixes the "404 on Refresh" issue for React apps
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build.environment]
+  # Ensures Netlify uses a modern version of Node
+  NODE_VERSION = "20"
