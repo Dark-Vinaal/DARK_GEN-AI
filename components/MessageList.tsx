@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Message } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, User, FileText, Copy, ThumbsUp, ThumbsDown, RotateCw, Trash2, Edit2, Check } from 'lucide-react';
+import { Bot, User, FileText, Copy, ThumbsUp, ThumbsDown, RotateCw, Trash2, Edit2, Check, Volume2 } from 'lucide-react';
 
 interface MessageListProps {
   messages: Message[];
@@ -11,6 +11,33 @@ interface MessageListProps {
   onEdit: (id: string, newContent: string) => void;
   onFeedback: (id: string, type: 'like' | 'dislike') => void;
 }
+
+const Typewriter = ({ text, speed = 40 }: { text: string; speed?: number }) => {
+  const [displayedText, setDisplayedText] = useState('');
+  const [showCursor, setShowCursor] = useState(true);
+
+  useEffect(() => {
+    let i = 0;
+    const timer = setInterval(() => {
+      if (i < text.length) {
+        setDisplayedText((prev) => prev + text.charAt(i));
+        i++;
+      } else {
+        clearInterval(timer);
+        setTimeout(() => setShowCursor(false), 2000); // Hide cursor after 2s
+      }
+    }, speed);
+
+    return () => clearInterval(timer);
+  }, [text, speed]);
+
+  return (
+    <span>
+      {displayedText}
+      {showCursor && <span className="animate-pulse text-indigo-500">|</span>}
+    </span>
+  );
+};
 
 export const MessageList: React.FC<MessageListProps> = ({
   messages, onDelete, onRegenerate, onEdit, onFeedback
@@ -32,15 +59,24 @@ export const MessageList: React.FC<MessageListProps> = ({
     setEditingId(null);
   };
 
+  const handleSpeak = (text: string) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+  };
+
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-zinc-500 p-8 text-center opacity-60">
+      <div className="flex flex-col items-center justify-center h-full text-zinc-500 p-8 text-center opacity-80">
         <div className="w-20 h-20 bg-gray-100 dark:bg-zinc-900 rounded-3xl flex items-center justify-center mb-6 border border-gray-200 dark:border-white/5 shadow-2xl">
           <Bot size={40} className="text-indigo-500" />
         </div>
-        <h2 className="text-2xl font-bold mb-3 text-gray-900 dark:text-white tracking-tight">DARK AI</h2>
-        <p className="max-w-md text-sm leading-relaxed text-gray-500 dark:text-zinc-400">
-          Your advanced AI assistant powered by Gemini. Ask me anything, generate code, or analyze documents.
+        <h2 className="text-3xl font-bold mb-3 tracking-tight">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-blue-500">
+            DARK AI
+          </span>
+        </h2>
+        <p className="max-w-md text-sm leading-relaxed text-gray-500 dark:text-zinc-400 h-10">
+          <Typewriter text="Hello There! How are you doing, I'm DARK AI... What are you curious about today?" />
         </p>
       </div>
     );
@@ -167,6 +203,13 @@ export const MessageList: React.FC<MessageListProps> = ({
                     </button>
                     <div className="w-px h-3 bg-gray-200 dark:bg-zinc-800 mx-1" />
                     <button
+                      onClick={() => handleSpeak(msg.content)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-500 dark:hover:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-md transition-colors"
+                      title="Read Aloud"
+                    >
+                      <Volume2 size={14} />
+                    </button>
+                    <button
                       onClick={() => onFeedback(msg.id, 'like')}
                       className={`p-1.5 rounded-md transition-colors ${msg.liked ? 'text-green-500 dark:text-green-400' : 'text-gray-400 hover:text-green-500 hover:bg-green-50 dark:text-zinc-500 dark:hover:text-green-400 dark:hover:bg-green-500/10'}`}
                     >
@@ -186,6 +229,11 @@ export const MessageList: React.FC<MessageListProps> = ({
                 </button>
               </div>
             )}
+            {/* Timestamp */}
+            <div className={`mt-1 text-[10px] text-gray-400 dark:text-zinc-600 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+
           </div>
 
           {

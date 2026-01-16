@@ -31,6 +31,7 @@ export interface ChatSession {
   messages: Message[];
   lastUpdated: number;
   preview: string;
+  pinned?: boolean;
 }
 
 export interface SendMessageParams {
