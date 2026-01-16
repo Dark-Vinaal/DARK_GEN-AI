@@ -4,7 +4,7 @@ export const sendMessageToPuter = async (
   { text, file }: SendMessageParams,
   onStream: (chunk: string) => void
 ) => {
-  
+
   // OPTIMIZATION: Heavy library (@heyputer/puter.js) is ONLY loaded when needed.
   let puter;
   try {
@@ -23,23 +23,14 @@ export const sendMessageToPuter = async (
 
   try {
     // Attempt to stream
-    const response = await puter.ai.chat(prompt, { stream: true });
+    // Using non-streaming for stability as requested
+    const response = await puter.ai.chat(prompt, { stream: false, model: 'llama-3-70b-instruct', max_tokens: 4000 });
 
-    // Check if response is actually iterable (Generator)
-    if (response && typeof response[Symbol.asyncIterator] === 'function') {
-      for await (const part of response) {
-        // Handle different chunk formats (string or object)
-        const content = typeof part === 'string' ? part : part?.text || '';
-        onStream(content);
-      }
-    } else {
-      // Fallback if not iterable (e.g. single response object)
-      const content = typeof response === 'string' 
-        ? response 
-        : response?.message?.content || response?.text || '';
-      
-      onStream(content);
-    }
+    const content = typeof response === 'string'
+      ? response
+      : response?.message?.content || response?.text || '';
+
+    onStream(content);
   } catch (error) {
     console.error("Puter.js error:", error);
     throw error;

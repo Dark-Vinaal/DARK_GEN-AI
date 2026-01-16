@@ -61,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       <div className="flex items-center gap-2">
-        {!process.env.API_KEY || process.env.API_KEY === 'ENTER_YOUR_KEY_HERE' ? (
+        {provider === 'puter' ? (
           <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-400/10 px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-400/20 mr-2">
             <AlertTriangle size={12} />
             <span className="hidden sm:inline">Fallback Mode</span>
@@ -92,8 +92,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <FileText size={14} className="group-hover:text-indigo-500 group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.5)] transition-all" /> Export Content
               </button>
               <div className="h-px bg-gray-100 dark:bg-white/5 my-1" />
-              <button onClick={() => handleExport('pdf')} className="w-full text-left px-4 py-2 text-xs text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white hover:scale-105 transition-all flex items-center gap-2 group">
-                <FileText size={12} className="group-hover:drop-shadow-[0_0_5px_rgba(99,102,241,0.5)]" /> PDF
+              <button onClick={() => handleExport('pdf')} className="w-full text-left px-4 py-2 text-xs text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-500 hover:scale-105 transition-all flex items-center gap-2 group">
+                <FileText size={12} className="group-hover:drop-shadow-[0_0_5px_rgba(239,68,68,0.5)]" /> PDF
               </button>
               <button onClick={() => handleExport('word')} className="w-full text-left px-4 py-2 text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:scale-105 transition-all flex items-center gap-2 group">
                 <FileType2 size={12} className="group-hover:drop-shadow-[0_0_5px_rgba(37,99,235,0.5)]" /> Word

@@ -10,6 +10,7 @@ import { Message, ChatSession, AppTab, Model } from './types';
 import { sendMessageToGemini } from './services/gemini';
 import { sendMessageToPuter } from './services/puter';
 import { sendMessageToOpenRouter } from './services/openrouter';
+import { sendMessageToHuggingFace } from './services/huggingface';
 import jsPDF from 'jspdf';
 import { AlertTriangle, X } from 'lucide-react';
 
@@ -17,9 +18,13 @@ import { AlertTriangle, X } from 'lucide-react';
 const AVAILABLE_MODELS: Model[] = [
   { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Native)', provider: 'gemini' },
   { id: 'openai/gpt-oss-120b:free', name: 'GPT OSS 120B (Free)', provider: 'openrouter', isFree: true },
-  { id: 'deepseek/deepseek-chat:free', name: 'DeepSeek Chat (Free)', provider: 'openrouter', isFree: true },
-  { id: 'meta-llama/llama-4-scout:free', name: 'Llama 4 Scout (Free)', provider: 'openrouter', isFree: true },
+  { id: 'deepseek/deepseek-v3:free', name: 'DeepSeek V3 (Free)', provider: 'openrouter', isFree: true },
+  { id: 'meta-llama/llama-4-maverick:free', name: 'Llama 4 Maverick (Free)', provider: 'openrouter', isFree: true },
   { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash Exp (Free)', provider: 'openrouter', isFree: true },
+  { id: 'google/gemma-2-9b-it', name: 'Gemma 2 (Neural Core)', provider: 'huggingface' },
+  { id: 'mistralai/Mistral-Small-Instruct-24B', name: 'Mistral (High Speed)', provider: 'huggingface' },
+  { id: 'meta-llama/Llama-3.3-70B-Instruct', name: 'Llama 3.3 (Deep Reasoning)', provider: 'huggingface' },
+  { id: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen 2.5 (Technical Pro)', provider: 'huggingface' },
   { id: 'puter-chat', name: 'Puter.js (Llama/GPT Fallback)', provider: 'puter' }
 ];
 
@@ -50,7 +55,7 @@ const MissingKeyToast: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('chat');
-  const [currentModelId, setCurrentModelId] = useState<string>('gemini-3-flash-preview');
+  const [currentModelId, setCurrentModelId] = useState<string>('puter-chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -176,6 +181,15 @@ const App: React.FC = () => {
         await sendMessageToGemini({ text, file, signal: abortControllerRef.current.signal }, onStream);
       } else if (provider === 'openrouter') {
         await sendMessageToOpenRouter({ text, file, modelId: currentModelId, signal: abortControllerRef.current.signal }, onStream);
+      } else if (provider === 'huggingface') {
+        await sendMessageToHuggingFace(
+          { text, modelId: currentModelId, signal: abortControllerRef.current.signal },
+          onStream,
+          (status) => {
+            // Handle 503 status updates by injecting a system message or updating the last bot message temporary
+            setMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, content: `_${status}_` } : m));
+          }
+        );
       } else {
         await sendMessageToPuter({ text, file }, onStream);
       }
@@ -196,7 +210,12 @@ const App: React.FC = () => {
         console.error("Error sending message:", error);
         setMessages(prev => prev.map(m =>
           m.isStreaming
-            ? { ...m, content: `Error: ${error.message || "Service unavailable."}`, isStreaming: false, isError: true }
+            ? {
+              ...m,
+              content: `⚠️ Neural Link Interrupted. Attempting fallback... \n\nError: ${error.message || "Service unavailable."}`,
+              isStreaming: false,
+              isError: true
+            }
             : m
         ));
       }

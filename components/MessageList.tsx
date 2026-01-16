@@ -75,8 +75,8 @@ export const MessageList: React.FC<MessageListProps> = ({
             DARK AI
           </span>
         </h2>
-        <p className="max-w-md text-sm leading-relaxed text-gray-500 dark:text-zinc-400 h-10">
-          <Typewriter text="Hello There! How are you doing, I'm DARK AI... What are you curious about today?" />
+        <p className="max-w-md text-sm leading-relaxed text-gray-500 dark:text-zinc-400 min-h-[50px] whitespace-pre-line">
+          <Typewriter text={"Hello! How are you doing..\nI'm DARK AI, What are you curious about today?"} />
         </p>
       </div>
     );

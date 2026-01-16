@@ -5,8 +5,8 @@ export const sendMessageToOpenRouter = async (
   onStream: (chunk: string) => void
 ) => {
   // Safe access to environment variables
-  const apiKey = import.meta.env?.VITE_OPENROUTER_KEY || 
-                 (typeof process !== 'undefined' ? process.env?.VITE_OPENROUTER_KEY : undefined);
+  const apiKey = import.meta.env?.VITE_OPENROUTER_KEY ||
+    (typeof process !== 'undefined' ? process.env?.VITE_OPENROUTER_KEY : undefined);
 
   if (!apiKey || apiKey.includes("PLACE_YOUR_KEY")) {
     throw new Error("OpenRouter API Key is missing. Please set VITE_OPENROUTER_KEY in your .env file.");
@@ -14,7 +14,7 @@ export const sendMessageToOpenRouter = async (
 
   // OpenRouter/OpenAI Compatible API Payload
   const messages: any[] = [];
-  
+
   if (file) {
     // Basic image handling for models that support it (Vision models)
     // Note: Converting file to base64 for payload
@@ -44,8 +44,8 @@ export const sendMessageToOpenRouter = async (
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": window.location.origin, // Required by OpenRouter
-        "X-Title": "Dark AI Chat", // Optional
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "DARK AI",
       },
       body: JSON.stringify({
         model: modelId || "openai/gpt-3.5-turbo",

@@ -1,5 +1,5 @@
 export type Role = 'user' | 'assistant' | 'system';
-export type AIProvider = 'gemini' | 'puter' | 'openrouter';
+export type AIProvider = 'gemini' | 'puter' | 'openrouter' | 'huggingface';
 export type AppTab = 'chat' | 'image' | 'video';
 
 export interface Model {

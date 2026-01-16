@@ -36,6 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [exportOpenId, setExportOpenId] = useState<string | null>(null);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpenId(null);
         setExportOpenId(null);
+        setModelSelectorOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -76,8 +78,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // Group models by provider for display
   const groupedModels = availableModels.reduce((acc, model) => {
-    const group = model.provider === 'gemini' ? 'Native Gemini' :
-      model.provider === 'openrouter' ? 'OpenRouter Free' : 'Fallback';
+    let group = 'Fallback';
+    if (model.provider === 'gemini') group = 'Native Gemini';
+    else if (model.provider === 'huggingface') group = 'Neural Core';
+    else if (model.provider === 'openrouter') group = 'OpenRouter Free';
+
     if (!acc[group]) acc[group] = [];
     acc[group].push(model);
     return acc;
@@ -116,23 +121,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Model Selector */}
         {activeTab === 'chat' && (
-          <div className="relative group">
-            <select
-              value={currentModelId}
-              onChange={(e) => onSetModelId(e.target.value)}
-              className="w-full appearance-none bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs py-2.5 px-3 pr-8 rounded-lg focus:outline-none focus:border-indigo-500/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+          <div className="relative group" ref={menuRef}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setModelSelectorOpen(!modelSelectorOpen); }}
+              className="w-full flex items-center justify-between bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs py-2.5 px-3 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
             >
-              {Object.entries(groupedModels).map(([group, models]) => (
-                <optgroup key={group} label={group} className="bg-white dark:bg-zinc-900 text-gray-500 dark:text-gray-400">
-                  {models.map(model => (
-                    <option key={model.id} value={model.id} className="text-gray-900 dark:text-white">
-                      {model.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <span className="truncate mr-2">
+                {availableModels.find(m => m.id === currentModelId)?.name || "Select Model"}
+              </span>
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${modelSelectorOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {modelSelectorOpen && (
+              <div className="absolute top-full left-0 w-[120%] -ml-[10%] mt-2 z-50 max-h-80 overflow-y-auto rounded-xl border border-gray-200 dark:border-white/10 shadow-2xl bg-white/80 dark:bg-black/80 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 p-2">
+                {Object.entries(groupedModels).map(([group, models]) => (
+                  <div key={group} className="mb-2 last:mb-0">
+                    <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1.5 sticky top-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm z-10 rounded">
+                      {group}
+                    </div>
+                    {models.map(model => (
+                      <button
+                        key={model.id}
+                        onClick={() => { onSetModelId(model.id); setModelSelectorOpen(false); }}
+                        className={`w-full text-left px-3 py-2 text-xs rounded-lg mb-0.5 transition-all duration-200 group/item relative overflow-hidden ${currentModelId === model.id
+                          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] dark:hover:shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:scale-105 hover:z-10 border border-transparent hover:border-indigo-500/30'
+                          }`}
+                      >
+                        <span className="relative z-10">{model.name}</span>
+                        {/* Glow Effect Layer */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" />
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
