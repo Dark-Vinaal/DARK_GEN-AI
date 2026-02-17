@@ -48,14 +48,14 @@ const VIDEO_MODELS: Model[] = [
 ];
 
 const MissingKeyToast: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <div className="fixed top-4 right-4 z-50 max-w-sm animate-in slide-in-from-right fade-in duration-300">
-    <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-amber-500/30 rounded-xl shadow-2xl p-4 flex gap-3 relative">
-      <div className="p-2 bg-amber-500/10 rounded-lg h-fit shrink-0">
+  <div className="fixed z-50 max-w-sm duration-300 top-4 right-4 animate-in slide-in-from-right fade-in">
+    <div className="relative flex gap-3 p-4 border shadow-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-amber-500/30 rounded-xl">
+      <div className="p-2 rounded-lg bg-amber-500/10 h-fit shrink-0">
         <AlertTriangle size={20} className="text-amber-500" />
       </div>
       <div>
-        <h4 className="text-gray-900 dark:text-white font-medium text-sm mb-1">Setup Required</h4>
-        <p className="text-gray-500 dark:text-zinc-400 text-xs leading-relaxed mb-2">
+        <h4 className="mb-1 text-sm font-medium text-gray-900 dark:text-white">Setup Required</h4>
+        <p className="mb-2 text-xs leading-relaxed text-gray-500 dark:text-zinc-400">
           API keys are missing from your environment. The app has switched to <b>Fallback Mode</b> (Puter.js).
         </p>
         <p className="text-gray-600 dark:text-zinc-500 text-[10px] font-mono bg-gray-100 dark:bg-black/30 p-1.5 rounded border border-gray-200 dark:border-white/5">
@@ -64,7 +64,7 @@ const MissingKeyToast: React.FC<{ onClose: () => void }> = ({ onClose }) => (
       </div>
       <button
         onClick={onClose}
-        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-white transition-colors"
+        className="absolute p-1 text-gray-400 transition-colors top-2 right-2 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-white"
       >
         <X size={14} />
       </button>
@@ -382,7 +382,7 @@ const App: React.FC = () => {
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-20 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 z-20 bg-black/60 md:hidden backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -410,7 +410,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full relative w-full">
+      <div className="relative flex flex-col flex-1 w-full h-full">
         <Navbar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
@@ -470,3 +470,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

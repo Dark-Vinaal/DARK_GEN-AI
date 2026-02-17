@@ -12,21 +12,8 @@ export const sendMessageToHuggingFace = async (
         throw new Error("Missing Hugging Face API Token (VITE_HF_TOKEN). Please check your .env configuration.");
     }
 
-    // Endpoint construction for Router API:
-    // Proxy: /hf-api -> https://router.huggingface.co/hf-inference
-    // Target Path: /models/[model_id]/v1/chat/completions
-    // Resulting Proxy Path: /hf-api/models/[model_id]/v1/chat/completions
-
-    // Note: The vite config maps /hf-api -> /models on the target.
-    // So if I call /hf-api/[modelId]/v1/chat/completions, it rewrites to /models/[modelId]/v1/chat/completions
-    // which effectively hits https://router.huggingface.co/hf-inference/models/[modelId]/v1/chat/completions
-    // Wait, the vite config rewrites `^/hf-api` to `/models`. 
-    // So `/hf-api/${modelId}/v1/chat/completions` becomes `/models/${modelId}/v1/chat/completions` on the target.
-    // Target is `https://router.huggingface.co/hf-inference`.
-    // Combined: `https://router.huggingface.co/hf-inference/models/${modelId}/v1/chat/completions`.
-    // This matches the standard router pattern.
-
-    const endpoint = `/hf-api/${modelId}/v1/chat/completions`;
+    // Use standard Hugging Face Inference API
+    const endpoint = `https://api-inference.huggingface.co/models/${modelId}/v1/chat/completions`;
 
     const makeRequest = async (retryCount = 0): Promise<void> => {
         try {

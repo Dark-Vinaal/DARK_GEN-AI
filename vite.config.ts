@@ -9,14 +9,7 @@ export default defineConfig(({ mode }) => {
       include: ['@heyputer/puter.js', 'jspdf', 'lucide-react', '@google/genai'],
     },
     server: {
-      proxy: {
-        '/hf-api': {
-          target: 'https://router.huggingface.co/hf-inference',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/hf-api/, '/models'),
-          secure: false,
-        }
-      }
+      proxy: {}
     }
   };
 });

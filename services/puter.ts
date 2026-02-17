@@ -25,24 +25,35 @@ export const sendMessageToPuter = async (
 
   try {
     // Use the globally available puter object
-    const stream = await window.puter.ai.chat(prompt, {
+    const response = await window.puter.ai.chat(prompt, {
       stream: true,
-      model: 'llama-3-70b-instruct',
-      max_tokens: 4000
+      model: 'llama-3-70b-instruct'
     });
 
-    // Process the stream and send chunks as they arrive
-    for await (const chunk of stream) {
-      const content = chunk.message?.content;
-      if (content) {
+    // Check if response is an async iterable
+    if (response && typeof response[Symbol.asyncIterator] === 'function') {
+      for await (const chunk of response) {
+        console.log("Puter chunk:", chunk); // Debugging
+        const content = chunk?.message?.content || chunk?.text;
+        if (typeof content === 'string') {
+          onStream(content);
+        }
+      }
+    } else if (response && typeof response === 'object' && 'message' in response) {
+      // Handle non-streaming response gracefully
+      const content = (response as any).message?.content;
+      if (typeof content === 'string') {
         onStream(content);
       }
+    } else {
+      console.warn("Unexpected Puter response format:", response);
+      throw new Error("Received empty or invalid response from Puter.js");
     }
+
   } catch (error) {
     console.error("Puter.js error:", error);
-    // Handle potential non-async-iterable error from the original problem description
     if (error instanceof TypeError && error.message.includes("is not async iterable")) {
-        throw new Error("The response from Puter.js was not in the expected format. Please try again.");
+      throw new Error("Puter.js response was not iterable. Please try again.");
     }
     throw error;
   }
