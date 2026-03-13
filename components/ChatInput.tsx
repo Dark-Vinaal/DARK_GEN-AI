@@ -72,11 +72,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onStop, loa
       )}
 
       <form onSubmit={handleSubmit} className="relative">
-        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 rounded-[1.5rem] md:rounded-[2rem] flex items-center p-1 md:p-2 shadow-xl dark:shadow-2xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all">
+        <div className="bg-white dark:bg-zinc-900 border border-cyan-500/50 dark:border-cyan-400/50 rounded-[1.5rem] md:rounded-[2rem] flex items-center p-1 md:p-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] dark:shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] dark:hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] focus-within:ring-2 focus-within:ring-cyan-400/50 focus-within:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all duration-300">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 md:p-3 text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 rounded-full transition-colors shrink-0"
+            className="p-2 md:p-3 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 dark:text-gray-400 dark:hover:text-cyan-400 dark:hover:bg-cyan-900/20 rounded-full transition-colors shrink-0"
           >
             <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
           </button>
@@ -103,7 +103,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onStop, loa
               onClick={toggleVoice}
               className={`p-2 md:p-3 rounded-full transition-colors ${isListening
                 ? 'text-red-500 bg-red-50 dark:bg-red-500/10 animate-pulse'
-                : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10'
+                : 'text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 dark:text-gray-400 dark:hover:text-cyan-400 dark:hover:bg-cyan-900/20'
                 }`}
             >
               <Mic className="w-4 h-4 md:w-5 md:h-5" />
@@ -123,7 +123,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onStop, loa
                 type="submit"
                 disabled={!text.trim() && !file}
                 className={`p-2 md:p-3 rounded-full transition-all flex items-center justify-center ${text.trim() || file
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 hover:scale-105 active:scale-95'
+                  ? 'bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)] hover:bg-cyan-400 hover:scale-105 active:scale-95 hover:shadow-[0_0_20px_rgba(6,182,212,0.7)]'
                   : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600 cursor-not-allowed'
                   }`}
               >

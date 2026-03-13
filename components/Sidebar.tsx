@@ -144,13 +144,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       key={model.id}
                       onClick={() => { onSetModelId(model.id); setModelSelectorOpen(false); }}
                       className={`w-full text-left px-3 py-2 text-xs rounded-lg mb-0.5 transition-all duration-200 group/item relative overflow-hidden ${currentModelId === model.id
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] dark:hover:shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:scale-105 hover:z-10 border border-transparent hover:border-indigo-500/30'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] dark:hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:scale-105 hover:z-10 border border-transparent hover:border-cyan-500/30'
                         }`}
                     >
                       <span className="relative z-10">{model.name}</span>
                       {/* Glow Effect Layer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-cyan-500/0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" />
                     </button>
                   ))}
                 </div>
@@ -162,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {activeTab === 'chat' && (
           <button
             onClick={onNewChat}
-            className="flex items-center justify-center gap-2 w-full bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-xl transition-all font-medium shadow-lg shadow-indigo-500/20 dark:shadow-indigo-900/20"
+            className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white p-3 rounded-xl transition-all font-medium shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] hover:scale-[1.02] active:scale-[0.98]"
           >
             <Plus size={18} />
             <span>New Chat</span>

@@ -18,9 +18,10 @@ const Typewriter = ({ text, speed = 40 }: { text: string; speed?: number }) => {
 
   useEffect(() => {
     let i = 0;
+    setDisplayedText(''); // Reset on new text
     const timer = setInterval(() => {
       if (i < text.length) {
-        setDisplayedText((prev) => prev + text.charAt(i));
+        setDisplayedText(text.slice(0, i + 1));
         i++;
       } else {
         clearInterval(timer);
@@ -34,7 +35,7 @@ const Typewriter = ({ text, speed = 40 }: { text: string; speed?: number }) => {
   return (
     <span>
       {displayedText}
-      {showCursor && <span className="animate-pulse text-indigo-500">|</span>}
+      {showCursor && <span className="animate-pulse text-cyan-400">|</span>}
     </span>
   );
 };
@@ -131,18 +132,30 @@ export const MessageList: React.FC<MessageListProps> = ({
                 <div className="leading-relaxed md:leading-7 text-sm md:text-[15px] prose prose-sm dark:prose-invert max-w-none break-words prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-code:before:content-none prose-code:after:content-none prose-headings:font-semibold prose-a:text-indigo-600 dark:prose-a:text-indigo-400">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
-                    components={{
-                      code({ node, className, children, ...props }) {
-                        const match = /language-(\w+)/.exec(className || '')
-                        const isInline = !match && !String(children).includes('\n');
+                      components={{
+                        h1: ({ node, ...props }) => (
+                          <h1 className="text-3xl font-bold mt-6 mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" {...props} />
+                        ),
+                        h2: ({ node, ...props }) => (
+                          <h2 className="text-2xl font-bold mt-5 mb-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" {...props} />
+                        ),
+                        h3: ({ node, ...props }) => (
+                          <h3 className="text-xl font-bold mt-4 mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]" {...props} />
+                        ),
+                        h4: ({ node, ...props }) => (
+                          <h4 className="text-lg font-bold mt-3 mb-2 text-cyan-400 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]" {...props} />
+                        ),
+                        code({ node, className, children, ...props }) {
+                          const match = /language-(\w+)/.exec(className || '')
+                          const isInline = !match && !String(children).includes('\n');
 
-                        return isInline ? (
-                          <code className="bg-gray-100 dark:bg-white/10 px-1 py-0.5 rounded font-mono text-xs md:text-sm" {...props}>
-                            {children}
-                          </code>
-                        ) : (
-                          <div className="relative group my-3 md:my-4 rounded-lg overflow-hidden bg-[#1e1e1e] border border-white/10 shadow-lg">
-                            <div className="flex items-center justify-between px-3 md:px-4 py-1.5 md:py-2 bg-[#2d2d2d] border-b border-white/5">
+                          return isInline ? (
+                            <code className="bg-gray-100 dark:bg-white/10 px-1 py-0.5 rounded font-mono text-xs md:text-sm text-cyan-600 dark:text-cyan-400" {...props}>
+                              {children}
+                            </code>
+                          ) : (
+                            <div className="relative group my-3 md:my-4 rounded-lg overflow-hidden bg-[#0a0a0a] border border-cyan-900/30 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+                              <div className="flex items-center justify-between px-3 md:px-4 py-1.5 md:py-2 bg-[#1a1a1a] border-b border-cyan-900/30">
                               <span className="text-[10px] md:text-xs text-gray-400 uppercase font-mono">{match?.[1] || 'code'}</span>
                               <button
                                 onClick={() => navigator.clipboard.writeText(String(children))}
