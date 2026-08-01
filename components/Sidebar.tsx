@@ -76,18 +76,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Group models by provider for display
-  const groupedModels = availableModels.reduce((acc, model) => {
-    let group = 'PUTERJS';
-    if (model.provider === 'gemini') group = 'NATIVE GEMINI';
-    else if (model.provider === 'huggingface') group = 'NEURAL CORE';
-    else if (model.provider === 'openrouter') group = 'OPENROUTER';
-    else if (model.provider === 'groq') group = 'GROQ';
+  // Group models by provider for display in exact required sequence
+  const PROVIDER_ORDER = [
+    { key: 'NATIVE GEMINI', provider: 'gemini', disabled: false },
+    { key: 'GROQ', provider: 'groq', disabled: false },
+    { key: 'PUTER.JS', provider: 'puter', disabled: false },
+    { key: 'OPENROUTER', provider: 'openrouter', disabled: true, label: 'Coming Soon' },
+    { key: 'NEURAL CORE', provider: 'huggingface', disabled: true, label: 'Currently Disabled' }
+  ];
 
-    if (!acc[group]) acc[group] = [];
-    acc[group].push(model);
-    return acc;
-  }, {} as Record<string, Model[]>);
+  const groupedModels = PROVIDER_ORDER.map(({ key, provider, disabled, label }) => {
+    const models = availableModels.filter(m => m.provider === provider);
+    return { group: key, provider, models, disabled, tooltip: label };
+  }).filter(g => g.models.length > 0 || g.disabled);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a] border-r border-gray-200 dark:border-white/10 transition-colors duration-300">
@@ -134,24 +135,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {modelSelectorOpen && (
             <div className="absolute top-full left-0 w-[120%] -ml-[10%] mt-2 z-50 max-h-80 overflow-y-auto rounded-xl border border-gray-200 dark:border-white/10 shadow-2xl bg-white/80 dark:bg-black/80 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 p-2">
-              {Object.entries(groupedModels).map(([group, models]) => (
+              {groupedModels.map(({ group, models, disabled, tooltip }) => (
                 <div key={group} className="mb-2 last:mb-0">
-                  <div className="text-[11px] font-bold text-blue-900 dark:text-blue-400 uppercase tracking-widest px-2 py-2 sticky top-0 bg-white/60 dark:bg-black/60 backdrop-blur-md z-10 rounded-md border-b border-blue-100 dark:border-blue-900/30 mb-1">
-                    {group}
+                  <div className="flex items-center justify-between text-[11px] font-bold text-blue-900 dark:text-blue-400 uppercase tracking-widest px-2 py-2 sticky top-0 bg-white/60 dark:bg-black/60 backdrop-blur-md z-10 rounded-md border-b border-blue-100 dark:border-blue-900/30 mb-1">
+                    <span>{group}</span>
+                    {disabled && (
+                      <span className="text-[9px] font-normal text-amber-500/90 dark:text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                        {tooltip}
+                      </span>
+                    )}
                   </div>
                   {models.map(model => (
-                    <button
-                      key={model.id}
-                      onClick={() => { onSetModelId(model.id); setModelSelectorOpen(false); }}
-                      className={`w-full text-left px-3 py-2 text-xs rounded-lg mb-0.5 transition-all duration-200 group/item relative overflow-hidden ${currentModelId === model.id
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] dark:hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:scale-105 hover:z-10 border border-transparent hover:border-cyan-500/30'
-                        }`}
-                    >
-                      <span className="relative z-10">{model.name}</span>
-                      {/* Glow Effect Layer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-cyan-500/0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" />
-                    </button>
+                    <div key={model.id} className="relative group/tooltip">
+                      <button
+                        disabled={disabled}
+                        title={disabled ? tooltip : undefined}
+                        onClick={() => {
+                          if (!disabled) {
+                            onSetModelId(model.id);
+                            setModelSelectorOpen(false);
+                          }
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs rounded-lg mb-0.5 transition-all duration-200 relative overflow-hidden ${
+                          disabled
+                            ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600 bg-gray-50/50 dark:bg-white/[0.02]'
+                            : currentModelId === model.id
+                              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] dark:hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:scale-105 hover:z-10 border border-transparent hover:border-cyan-500/30'
+                          }`}
+                      >
+                        <span className="relative z-10">{model.name}</span>
+                        {!disabled && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-cyan-500/0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" />
+                        )}
+                      </button>
+                    </div>
                   ))}
                 </div>
               ))}

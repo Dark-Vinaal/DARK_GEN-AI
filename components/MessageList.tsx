@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Message } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,20 +12,20 @@ interface MessageListProps {
   onFeedback: (id: string, type: 'like' | 'dislike') => void;
 }
 
-const Typewriter = ({ text, speed = 40 }: { text: string; speed?: number }) => {
+const Typewriter = React.memo(({ text, speed = 40 }: { text: string; speed?: number }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [showCursor, setShowCursor] = useState(true);
 
   useEffect(() => {
     let i = 0;
-    setDisplayedText(''); // Reset on new text
+    setDisplayedText('');
     const timer = setInterval(() => {
       if (i < text.length) {
         setDisplayedText(text.slice(0, i + 1));
         i++;
       } else {
         clearInterval(timer);
-        setTimeout(() => setShowCursor(false), 2000); // Hide cursor after 2s
+        setTimeout(() => setShowCursor(false), 2000);
       }
     }, speed);
 
@@ -38,7 +38,201 @@ const Typewriter = ({ text, speed = 40 }: { text: string; speed?: number }) => {
       {showCursor && <span className="animate-pulse text-cyan-400">|</span>}
     </span>
   );
-};
+});
+
+const MessageItem = React.memo<{
+  msg: Message;
+  editingId: string | null;
+  editContent: string;
+  copiedId: string | null;
+  setEditContent: (val: string) => void;
+  setEditingId: (id: string | null) => void;
+  saveEdit: (id: string) => void;
+  startEdit: (msg: Message) => void;
+  handleCopy: (text: string, id: string) => void;
+  handleSpeak: (text: string) => void;
+  onRegenerate: (id: string) => void;
+  onFeedback: (id: string, type: 'like' | 'dislike') => void;
+  onDelete: (id: string) => void;
+}>(({
+  msg, editingId, editContent, copiedId,
+  setEditContent, setEditingId, saveEdit, startEdit,
+  handleCopy, handleSpeak, onRegenerate, onFeedback, onDelete
+}) => {
+  return (
+    <div
+      className={`group flex gap-3 md:gap-5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}
+    >
+      {msg.role === 'assistant' && (
+        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white dark:bg-indigo-600/20 border border-gray-200 dark:border-indigo-500/30 flex items-center justify-center shrink-0 shadow-lg mt-1">
+          <Bot className="w-4 h-4 md:w-5 md:h-5 text-indigo-600 dark:text-indigo-400" />
+        </div>
+      )}
+
+      <div className={`flex flex-col max-w-[85%] md:max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+        <div
+          className={`rounded-2xl p-3 md:p-5 shadow-sm backdrop-blur-sm border relative ${msg.role === 'user'
+            ? 'bg-indigo-600 border-indigo-600 text-white rounded-tr-sm dark:bg-zinc-800 dark:border-zinc-700/50'
+            : 'bg-white border-gray-200 text-gray-800 rounded-tl-sm dark:bg-zinc-900/50 dark:border-white/5 dark:text-gray-200'
+            } ${msg.isError ? 'border-red-500/50 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-200' : ''}`}
+        >
+          {msg.file && (
+            <div className={`flex items-center gap-2 mb-3 md:mb-4 p-2 md:p-3 rounded-xl text-[10px] md:text-xs border ${msg.role === 'user'
+              ? 'bg-white/10 border-white/20 text-white'
+              : 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-black/20 dark:border-indigo-500/20 dark:text-indigo-300'
+              }`}>
+              <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="font-medium truncate max-w-[120px] md:max-w-none">Attached: {msg.file.name}</span>
+            </div>
+          )}
+
+          {editingId === msg.id ? (
+            <div className="w-full min-w-[250px] md:min-w-[300px]">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full bg-white/10 dark:bg-black/30 border border-white/20 dark:border-indigo-500/50 rounded-lg p-2 text-inherit text-sm focus:outline-none min-h-[80px] md:min-h-[100px]"
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <button onClick={() => setEditingId(null)} className="px-3 py-1 text-[10px] md:text-xs opacity-70 hover:opacity-100">Cancel</button>
+                <button onClick={() => saveEdit(msg.id)} className="px-3 py-1 text-[10px] md:text-xs bg-white text-indigo-600 rounded-md shadow-sm font-medium hover:bg-gray-100 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500">Save</button>
+              </div>
+            </div>
+          ) : (
+            <div className="leading-relaxed md:leading-7 text-sm md:text-[15px] prose prose-sm dark:prose-invert max-w-none break-words prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-code:before:content-none prose-code:after:content-none prose-headings:font-semibold prose-a:text-indigo-600 dark:prose-a:text-indigo-400">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  h1: ({ node, ...props }) => (
+                    <h1 className="text-3xl font-bold mt-6 mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" {...props} />
+                  ),
+                  h2: ({ node, ...props }) => (
+                    <h2 className="text-2xl font-bold mt-5 mb-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" {...props} />
+                  ),
+                  h3: ({ node, ...props }) => (
+                    <h3 className="text-xl font-bold mt-4 mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]" {...props} />
+                  ),
+                  h4: ({ node, ...props }) => (
+                    <h4 className="text-lg font-bold mt-3 mb-2 text-cyan-400 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]" {...props} />
+                  ),
+                  code({ node, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const isInline = !match && !String(children).includes('\n');
+
+                    return isInline ? (
+                      <code className="bg-gray-100 dark:bg-white/10 px-1 py-0.5 rounded font-mono text-xs md:text-sm text-cyan-600 dark:text-cyan-400" {...props}>
+                        {children}
+                      </code>
+                    ) : (
+                      <div className="relative group my-3 md:my-4 rounded-lg overflow-hidden bg-[#0a0a0a] border border-cyan-900/30 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+                        <div className="flex items-center justify-between px-3 md:px-4 py-1.5 md:py-2 bg-[#1a1a1a] border-b border-cyan-900/30">
+                          <span className="text-[10px] md:text-xs text-gray-400 uppercase font-mono">{match?.[1] || 'code'}</span>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(String(children))}
+                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                            title="Copy code"
+                          >
+                            <Copy className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          </button>
+                        </div>
+                        <div className="p-3 md:p-4 overflow-x-auto text-xs md:text-sm">
+                          <code className={`!bg-transparent !p-0 font-mono ${className}`} {...props}>
+                            {children}
+                          </code>
+                        </div>
+                      </div>
+                    );
+                  },
+                  table: ({ node, ...props }) => (
+                    <div className="overflow-x-auto my-3 md:my-4 border border-gray-200 dark:border-white/10 rounded-lg">
+                      <table className="w-full text-left text-xs md:text-sm" {...props} />
+                    </div>
+                  ),
+                  thead: ({ node, ...props }) => (
+                    <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10" {...props} />
+                  ),
+                  th: ({ node, ...props }) => (
+                    <th className="px-3 md:px-4 py-2 md:py-3 font-semibold" {...props} />
+                  ),
+                  td: ({ node, ...props }) => (
+                    <td className="px-3 md:px-4 py-2 md:py-3 border-t border-gray-100 dark:border-white/5" {...props} />
+                  )
+                }}
+              >
+                {msg.content}
+              </ReactMarkdown>
+              {msg.isStreaming && (
+                <span className="inline-block w-1.5 md:w-2 h-3 md:h-4 ml-1 align-middle bg-indigo-500 animate-pulse" />
+              )}
+            </div>
+          )}
+        </div>
+
+        {!msg.isStreaming && !editingId && (
+          <div className={`flex items-center gap-1.5 md:gap-2 mt-1.5 md:mt-2 opacity-0 group-hover:opacity-100 transition-opacity px-1 md:px-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div className="relative">
+              <button onClick={() => handleCopy(msg.content, msg.id)} className="p-1 px-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/10 rounded-md transition-colors" title="Copy">
+                {copiedId === msg.id ? <Check className="w-3 md:w-3.5 h-3 md:h-3.5 text-green-500" /> : <Copy className="w-3 md:w-3.5 h-3 md:h-3.5" />}
+              </button>
+              {copiedId === msg.id && (
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded shadow-lg animate-in fade-in zoom-in duration-200 whitespace-nowrap">
+                  Copied
+                </span>
+              )}
+            </div>
+
+            {msg.role === 'user' && (
+              <button onClick={() => startEdit(msg)} className="p-1 px-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-500 dark:hover:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-md transition-colors" title="Edit">
+                <Edit2 className="w-3 md:w-3.5 h-3 md:h-3.5" />
+              </button>
+            )}
+
+            {msg.role === 'assistant' && (
+              <>
+                <button onClick={() => onRegenerate(msg.id)} className="p-1 px-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-500 dark:hover:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-md transition-colors" title="Regenerate">
+                  <RotateCw className="w-3 md:w-3.5 h-3 md:h-3.5" />
+                </button>
+                <div className="w-px h-3 bg-gray-200 dark:bg-zinc-800 mx-0.5" />
+                <button
+                  onClick={() => handleSpeak(msg.content)}
+                  className="p-1 px-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-500 dark:hover:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-md transition-colors"
+                  title="Read Aloud"
+                >
+                  <Volume2 className="w-3 md:w-3.5 h-3 md:h-3.5" />
+                </button>
+                <button
+                  onClick={() => onFeedback(msg.id, 'like')}
+                  className={`p-1 px-1.5 rounded-md transition-colors ${msg.liked ? 'text-green-500 dark:text-green-400' : 'text-gray-400 hover:text-green-500 hover:bg-green-50 dark:text-zinc-500 dark:hover:text-green-400 dark:hover:bg-green-500/10'}`}
+                >
+                  <ThumbsUp className="w-3 md:w-3.5 h-3 md:h-3.5" />
+                </button>
+                <button
+                  onClick={() => onFeedback(msg.id, 'dislike')}
+                  className={`p-1 px-1.5 rounded-md transition-colors ${msg.disliked ? 'text-red-500 dark:text-red-400' : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-red-500/10'}`}
+                >
+                  <ThumbsDown className="w-3 md:w-3.5 h-3 md:h-3.5" />
+                </button>
+              </>
+            )}
+
+            <button onClick={() => onDelete(msg.id)} className="p-1 px-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-red-500/10 rounded-md transition-colors" title="Delete">
+              <Trash2 className="w-3 md:w-3.5 h-3 md:h-3.5" />
+            </button>
+          </div>
+        )}
+        <div className={`mt-1 text-[9px] md:text-[10px] text-gray-400 dark:text-zinc-600 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      </div>
+
+      {msg.role === 'user' && (
+        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-200 border border-gray-300 dark:bg-zinc-800 dark:border-zinc-700 flex items-center justify-center shrink-0 mt-1">
+          <User className="w-4 h-4 md:w-5 md:h-5 text-gray-600 dark:text-zinc-400" />
+        </div>
+      )}
+    </div>
+  );
+});
 
 export const MessageList: React.FC<MessageListProps> = ({
   messages, onDelete, onRegenerate, onEdit, onFeedback
@@ -47,26 +241,26 @@ export const MessageList: React.FC<MessageListProps> = ({
   const [editContent, setEditContent] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const handleCopy = (text: string, id: string) => {
+  const handleCopy = useCallback((text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
+  }, []);
 
-  const startEdit = (msg: Message) => {
+  const startEdit = useCallback((msg: Message) => {
     setEditingId(msg.id);
     setEditContent(msg.content);
-  };
+  }, []);
 
-  const saveEdit = (id: string) => {
+  const saveEdit = useCallback((id: string) => {
     onEdit(id, editContent);
     setEditingId(null);
-  };
+  }, [editContent, onEdit]);
 
-  const handleSpeak = (text: string) => {
+  const handleSpeak = useCallback((text: string) => {
     const utterance = new SpeechSynthesisUtterance(text);
     window.speechSynthesis.speak(utterance);
-  };
+  }, []);
 
   if (messages.length === 0) {
     return (
@@ -89,185 +283,23 @@ export const MessageList: React.FC<MessageListProps> = ({
   return (
     <div className="max-w-3xl mx-auto px-2 md:px-4 py-4 md:py-8 space-y-6 md:space-y-8 scroll-smooth">
       {messages.map((msg) => (
-        <div
+        <MessageItem
           key={msg.id}
-          className={`group flex gap-3 md:gap-5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}
-        >
-          {msg.role === 'assistant' && (
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white dark:bg-indigo-600/20 border border-gray-200 dark:border-indigo-500/30 flex items-center justify-center shrink-0 shadow-lg mt-1">
-              <Bot className="w-4 h-4 md:w-5 md:h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-          )}
-
-          <div className={`flex flex-col max-w-[85%] md:max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            <div
-              className={`rounded-2xl p-3 md:p-5 shadow-sm backdrop-blur-sm border relative ${msg.role === 'user'
-                ? 'bg-indigo-600 border-indigo-600 text-white rounded-tr-sm dark:bg-zinc-800 dark:border-zinc-700/50'
-                : 'bg-white border-gray-200 text-gray-800 rounded-tl-sm dark:bg-zinc-900/50 dark:border-white/5 dark:text-gray-200'
-                } ${msg.isError ? 'border-red-500/50 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-200' : ''}`}
-            >
-              {msg.file && (
-                <div className={`flex items-center gap-2 mb-3 md:mb-4 p-2 md:p-3 rounded-xl text-[10px] md:text-xs border ${msg.role === 'user'
-                  ? 'bg-white/10 border-white/20 text-white'
-                  : 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-black/20 dark:border-indigo-500/20 dark:text-indigo-300'
-                  }`}>
-                  <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  <span className="font-medium truncate max-w-[120px] md:max-w-none">Attached: {msg.file.name}</span>
-                </div>
-              )}
-
-              {editingId === msg.id ? (
-                <div className="w-full min-w-[250px] md:min-w-[300px]">
-                  <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full bg-white/10 dark:bg-black/30 border border-white/20 dark:border-indigo-500/50 rounded-lg p-2 text-inherit text-sm focus:outline-none min-h-[80px] md:min-h-[100px]"
-                  />
-                  <div className="flex justify-end gap-2 mt-2">
-                    <button onClick={() => setEditingId(null)} className="px-3 py-1 text-[10px] md:text-xs opacity-70 hover:opacity-100">Cancel</button>
-                    <button onClick={() => saveEdit(msg.id)} className="px-3 py-1 text-[10px] md:text-xs bg-white text-indigo-600 rounded-md shadow-sm font-medium hover:bg-gray-100 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500">Save</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="leading-relaxed md:leading-7 text-sm md:text-[15px] prose prose-sm dark:prose-invert max-w-none break-words prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-code:before:content-none prose-code:after:content-none prose-headings:font-semibold prose-a:text-indigo-600 dark:prose-a:text-indigo-400">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                      components={{
-                        h1: ({ node, ...props }) => (
-                          <h1 className="text-3xl font-bold mt-6 mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" {...props} />
-                        ),
-                        h2: ({ node, ...props }) => (
-                          <h2 className="text-2xl font-bold mt-5 mb-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" {...props} />
-                        ),
-                        h3: ({ node, ...props }) => (
-                          <h3 className="text-xl font-bold mt-4 mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]" {...props} />
-                        ),
-                        h4: ({ node, ...props }) => (
-                          <h4 className="text-lg font-bold mt-3 mb-2 text-cyan-400 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]" {...props} />
-                        ),
-                        code({ node, className, children, ...props }) {
-                          const match = /language-(\w+)/.exec(className || '')
-                          const isInline = !match && !String(children).includes('\n');
-
-                          return isInline ? (
-                            <code className="bg-gray-100 dark:bg-white/10 px-1 py-0.5 rounded font-mono text-xs md:text-sm text-cyan-600 dark:text-cyan-400" {...props}>
-                              {children}
-                            </code>
-                          ) : (
-                            <div className="relative group my-3 md:my-4 rounded-lg overflow-hidden bg-[#0a0a0a] border border-cyan-900/30 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-                              <div className="flex items-center justify-between px-3 md:px-4 py-1.5 md:py-2 bg-[#1a1a1a] border-b border-cyan-900/30">
-                              <span className="text-[10px] md:text-xs text-gray-400 uppercase font-mono">{match?.[1] || 'code'}</span>
-                              <button
-                                onClick={() => navigator.clipboard.writeText(String(children))}
-                                className="p-1 text-gray-400 hover:text-white transition-colors"
-                                title="Copy code"
-                              >
-                                <Copy className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            </div>
-                            <div className="p-3 md:p-4 overflow-x-auto text-xs md:text-sm">
-                              <code className={`!bg-transparent !p-0 font-mono ${className}`} {...props}>
-                                {children}
-                              </code>
-                            </div>
-                          </div>
-                        )
-                      },
-                      // Custom styling for tables
-                      table: ({ node, ...props }) => (
-                        <div className="overflow-x-auto my-3 md:my-4 border border-gray-200 dark:border-white/10 rounded-lg">
-                          <table className="w-full text-left text-xs md:text-sm" {...props} />
-                        </div>
-                      ),
-                      thead: ({ node, ...props }) => (
-                        <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10" {...props} />
-                      ),
-                      th: ({ node, ...props }) => (
-                        <th className="px-3 md:px-4 py-2 md:py-3 font-semibold" {...props} />
-                      ),
-                      td: ({ node, ...props }) => (
-                        <td className="px-3 md:px-4 py-2 md:py-3 border-t border-gray-100 dark:border-white/5" {...props} />
-                      )
-                    }}
-                  >
-                    {msg.content}
-                  </ReactMarkdown>
-                  {msg.isStreaming && (
-                    <span className="inline-block w-1.5 md:w-2 h-3 md:h-4 ml-1 align-middle bg-indigo-500 animate-pulse" />
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Message Actions */}
-            {!msg.isStreaming && !editingId && (
-              <div className={`flex items-center gap-1.5 md:gap-2 mt-1.5 md:mt-2 opacity-0 group-hover:opacity-100 transition-opacity px-1 md:px-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className="relative">
-                  <button onClick={() => handleCopy(msg.content, msg.id)} className="p-1 px-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/10 rounded-md transition-colors" title="Copy">
-                    {copiedId === msg.id ? <Check className="w-3 md:w-3.5 h-3 md:h-3.5 text-green-500" /> : <Copy className="w-3 md:w-3.5 h-3 md:h-3.5" />}
-                  </button>
-                  {copiedId === msg.id && (
-                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded shadow-lg animate-in fade-in zoom-in duration-200 whitespace-nowrap">
-                      Copied
-                    </span>
-                  )}
-                </div>
-
-                {msg.role === 'user' && (
-                  <button onClick={() => startEdit(msg)} className="p-1 px-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-500 dark:hover:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-md transition-colors" title="Edit">
-                    <Edit2 className="w-3 md:w-3.5 h-3 md:h-3.5" />
-                  </button>
-                )}
-
-                {msg.role === 'assistant' && (
-                  <>
-                    <button onClick={() => onRegenerate(msg.id)} className="p-1 px-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-500 dark:hover:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-md transition-colors" title="Regenerate">
-                      <RotateCw className="w-3 md:w-3.5 h-3 md:h-3.5" />
-                    </button>
-                    <div className="w-px h-3 bg-gray-200 dark:bg-zinc-800 mx-0.5" />
-                    <button
-                      onClick={() => handleSpeak(msg.content)}
-                      className="p-1 px-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-500 dark:hover:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-md transition-colors"
-                      title="Read Aloud"
-                    >
-                      <Volume2 className="w-3 md:w-3.5 h-3 md:h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onFeedback(msg.id, 'like')}
-                      className={`p-1 px-1.5 rounded-md transition-colors ${msg.liked ? 'text-green-500 dark:text-green-400' : 'text-gray-400 hover:text-green-500 hover:bg-green-50 dark:text-zinc-500 dark:hover:text-green-400 dark:hover:bg-green-500/10'}`}
-                    >
-                      <ThumbsUp className="w-3 md:w-3.5 h-3 md:h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onFeedback(msg.id, 'dislike')}
-                      className={`p-1 px-1.5 rounded-md transition-colors ${msg.disliked ? 'text-red-500 dark:text-red-400' : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-red-500/10'}`}
-                    >
-                      <ThumbsDown className="w-3 md:w-3.5 h-3 md:h-3.5" />
-                    </button>
-                  </>
-                )}
-
-                <button onClick={() => onDelete(msg.id)} className="p-1 px-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-red-500/10 rounded-md transition-colors" title="Delete">
-                  <Trash2 className="w-3 md:w-3.5 h-3 md:h-3.5" />
-                </button>
-              </div>
-            )}
-            {/* Timestamp */}
-            <div className={`mt-1 text-[9px] md:text-[10px] text-gray-400 dark:text-zinc-600 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
-
-          </div>
-
-          {
-            msg.role === 'user' && (
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-200 border border-gray-300 dark:bg-zinc-800 dark:border-zinc-700 flex items-center justify-center shrink-0 mt-1">
-                <User className="w-4 h-4 md:w-5 md:h-5 text-gray-600 dark:text-zinc-400" />
-              </div>
-            )
-          }
-        </div >
+          msg={msg}
+          editingId={editingId}
+          editContent={editContent}
+          copiedId={copiedId}
+          setEditContent={setEditContent}
+          setEditingId={setEditingId}
+          saveEdit={saveEdit}
+          startEdit={startEdit}
+          handleCopy={handleCopy}
+          handleSpeak={handleSpeak}
+          onRegenerate={onRegenerate}
+          onFeedback={onFeedback}
+          onDelete={onDelete}
+        />
       ))}
-    </div >
+    </div>
   );
 };

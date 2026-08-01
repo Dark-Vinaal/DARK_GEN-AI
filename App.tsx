@@ -8,11 +8,11 @@ import { VideoGenerator } from './components/VideoGenerator';
 import { LiveMasteryModal } from './components/LiveMasteryModal';
 import { Message, ChatSession, AppTab, Model } from './types';
 import { sendMessageToGemini } from './services/gemini';
-import { sendMessageToPuter } from './services/puter';
+
 import { sendMessageToOpenRouter } from './services/openrouter';
 import { sendMessageToHuggingFace } from './services/huggingface';
 import { sendMessageToGroq } from './services/groq';
-import jsPDF from 'jspdf';
+import { exportToPDF } from './utils/exportUtils';
 import { AlertTriangle, X } from 'lucide-react';
 
 // Define available models
@@ -20,17 +20,16 @@ const CHAT_MODELS: Model[] = [
   { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Native)', provider: 'gemini' },
   { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Native)', provider: 'gemini' },
   { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Native)', provider: 'gemini' },
-  { id: 'openai/gpt-oss-120b:free', name: 'GPT OSS 120B (Free)', provider: 'openrouter', isFree: true },
-  { id: 'deepseek/deepseek-v3:free', name: 'DeepSeek V3 (Free)', provider: 'openrouter', isFree: true },
-  { id: 'meta-llama/llama-4-maverick:free', name: 'Llama 4 Maverick (Free)', provider: 'openrouter', isFree: true },
-  { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Free)', provider: 'openrouter', isFree: true },
-  { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash Exp (Free)', provider: 'openrouter', isFree: true },
-  { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: 'Llama 3 8B Instruct', provider: 'huggingface' },
-  { id: 'meta-llama/Meta-Llama-3.1-8B-Instruct', name: 'Llama 3.1 8B Instruct', provider: 'huggingface' },
-  { id: 'microsoft/Phi-3-mini-4k-instruct', name: 'Phi 3 Mini 4k', provider: 'huggingface' },
   { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 (Groq Hyper-Speed)', provider: 'groq' },
   { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Groq Instant)', provider: 'groq' },
-  { id: 'puter-chat', name: 'Puter.js (Llama/GPT Fallback)', provider: 'puter' }
+  { id: 'puter-chat', name: 'Puter.js (Llama/GPT Fallback)', provider: 'puter' },
+  { id: 'google/gemini-2.0-flash-lite-preview-02-05:free', name: 'Gemini 2.0 Flash Lite (Free)', provider: 'openrouter', isFree: true },
+  { id: 'mistralai/mistral-small-24b-instruct-2501:free', name: 'Mistral Small 24B (Free)', provider: 'openrouter', isFree: true },
+  { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', provider: 'openrouter', isFree: true },
+  { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Free)', provider: 'openrouter', isFree: true },
+  { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: 'Llama 3 8B Instruct', provider: 'huggingface' },
+  { id: 'meta-llama/Meta-Llama-3.1-8B-Instruct', name: 'Llama 3.1 8B Instruct', provider: 'huggingface' },
+  { id: 'microsoft/Phi-3-mini-4k-instruct', name: 'Phi 3 Mini 4k', provider: 'huggingface' }
 ];
 
 const IMAGE_MODELS: Model[] = [
@@ -105,7 +104,7 @@ const App: React.FC = () => {
       setShowMissingKeyToast(true);
     } else if (isGeminiMissing && !isOpenRouterMissing) {
       // Default to an OpenRouter model if only Gemini is missing
-      setCurrentModelId('deepseek/deepseek-chat:free');
+      setCurrentModelId('deepseek/deepseek-v3:free');
     }
 
     const savedSessions = localStorage.getItem('chat_history');
@@ -195,6 +194,8 @@ const App: React.FC = () => {
       const selectedModel = CHAT_MODELS.find(m => m.id === currentModelId);
       const provider = selectedModel?.provider || 'puter';
 
+      console.info(`[Model Router] Routing request via provider: ${provider.toUpperCase()}, modelId: ${currentModelId || 'default'}`);
+
       if (provider === 'gemini') {
         await sendMessageToGemini({ text, file, signal: abortControllerRef.current.signal }, onStream);
       } else if (provider === 'openrouter') {
@@ -211,9 +212,24 @@ const App: React.FC = () => {
       } else if (provider === 'groq') {
         await sendMessageToGroq({ text, file, modelId: currentModelId, signal: abortControllerRef.current.signal }, onStream);
       } else {
-        await sendMessageToPuter({ text, file }, onStream);
-      }
+          try {
+            console.info('[Lazy Load] Loading Puter service...');
+            const puterModule = await import('./services/puter');
+            await puterModule.sendMessageToPuter(
+              { text, file },
+              onStream
+            );
+          } catch (err) {
+            console.error('[Puter] Failed to load service:', err);
 
+            throw new Error(
+              err instanceof Error
+                ? err.message
+                : 'Failed to initialize Puter service'
+            );
+          }
+        }
+        
       setMessages(prev => prev.map(m =>
         m.id === botMsgId ? { ...m, isStreaming: false } : m
       ));
@@ -353,19 +369,10 @@ const App: React.FC = () => {
   };
 
   const downloadCurrentChat = () => {
-    // Simple PDF download
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("Chat Export", 10, 10);
-    doc.setFontSize(12);
-    let y = 20;
-    messages.forEach(msg => {
-      const text = doc.splitTextToSize(`${msg.role.toUpperCase()}: ${msg.content}`, 180);
-      if (y + text.length * 7 > 280) { doc.addPage(); y = 10; }
-      doc.text(text, 10, y);
-      y += text.length * 7 + 5;
-    });
-    doc.save(`chat-${currentSessionId}.pdf`);
+    const session = sessions.find(s => s.id === currentSessionId);
+    if (session) {
+      exportToPDF(session);
+    }
   };
 
   // Contextual Model Helpers
@@ -417,7 +424,7 @@ const App: React.FC = () => {
           provider={currentTabModels.find(m => m.id === currentTabModelId)?.provider || 'puter'}
           modelName={currentTabSelectedModelName}
           onClearChat={clearCurrentChat}
-          onDownloadChat={() => { }}
+          onDownloadChat={downloadCurrentChat}
           onLiveMode={() => setIsLiveModeOpen(true)}
           currentSession={sessions.find(s => s.id === currentSessionId)}
           darkMode={darkMode}

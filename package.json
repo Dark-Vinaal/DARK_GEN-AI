@@ -8,6 +8,11 @@
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "not dead"
+  ],
   "dependencies": {
     "@google/genai": "^1.36.0",
     "@heyputer/puter.js": "^2.2.5",

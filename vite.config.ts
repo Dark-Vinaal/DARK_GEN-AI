@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     optimizeDeps: {
       // Force vite to pre-bundle these dependencies to prevent commonjs/esm issues
-      include: ['@heyputer/puter.js', 'jspdf', 'lucide-react', '@google/genai'],
+      include: ['jspdf', 'lucide-react', '@google/genai'],
     },
     server: {
       proxy: {}
