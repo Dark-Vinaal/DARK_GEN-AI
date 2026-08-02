@@ -6,7 +6,7 @@
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1WNUr6n-sBl2TRj4xz4R-urEU7ZYP8nsr
+View your app [DarkAI](https://dark-gen-ai.vercel.app/)
 
 ## Run Locally
 
