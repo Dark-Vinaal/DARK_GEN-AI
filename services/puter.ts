@@ -21,12 +21,8 @@ export const sendMessageToPuter = async (
       model: "claude-3-5-sonnet",
     });
 
-    console.log("[Puter Service] Response object:", response);
-
     if (response && typeof response[Symbol.asyncIterator] === "function") {
       for await (const chunk of response) {
-        console.log("[Puter Service] RAW CHUNK:", chunk);
-
         let content = "";
 
         if (typeof chunk === "string") {
@@ -35,14 +31,11 @@ export const sendMessageToPuter = async (
           content = chunk.text;
         }
 
-        console.log("[Puter Service] Extracted content:", content);
-
         if (content.length > 0) {
           onStream(content);
         }
       }
     } else if (typeof response === "string") {
-      console.log("[Puter Service] Non-stream response:", response);
       onStream(response);
     } else {
       console.warn(
@@ -53,10 +46,6 @@ export const sendMessageToPuter = async (
     }
   } catch (error: any) {
     console.error("[Puter Service] Full error:", error);
-
-    console.log("[Puter Service] Error message:", error?.message);
-    console.log("[Puter Service] Error response:", error?.response);
-    console.log("[Puter Service] Error data:", error?.data);
 
     if (
       error instanceof TypeError &&

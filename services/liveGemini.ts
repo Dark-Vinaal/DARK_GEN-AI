@@ -30,7 +30,6 @@ export class GeminiLiveClient extends EventEmitter {
     this.ws.onopen = () => {
       this.isConnected = true;
       this.emit('connected');
-      console.log('Gemini Live Connected');
 
       // Send setup message
       const setupMessage = {
@@ -80,7 +79,6 @@ export class GeminiLiveClient extends EventEmitter {
       this.isConnected = false;
       this.emit('disconnected');
       this.stopAudioInput();
-      console.log('Gemini Live Disconnected');
     };
   }
 
